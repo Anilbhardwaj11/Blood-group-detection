@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blood Group Detection From Fingerprint</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 20px;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .form-container {
+            background: white;
+            border-radius: 12px;
+            padding: 35px 40px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+        }
+        .form-container h2 {
+            color: #1a73e8;
+            font-size: 22px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 8px;
+        }
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 15px;
+            color: #333;
+            outline: none;
+            transition: border 0.2s;
+        }
+        input:focus, select:focus {
+            border-color: #1a73e8;
+        }
+        .file-upload {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 15px;
+            background: white;
+        }
+        .btn {
+            display: block;
+            width: fit-content;
+            margin: 25px auto 0;
+            padding: 13px 40px;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #1558b0; }
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+        .result.success {
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+        }
+        .result.error {
+            background: #ffebee;
+            border: 1px solid #ef9a9a;
+        }
+        .result h3 {
+            font-size: 20px;
+            color: #2e7d32;
+            margin-bottom: 8px;
+        }
+        .result p {
+            font-size: 15px;
+            color: #555;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 15px;
+            color: #1a73e8;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <h1>Blood Group Detection From Fingerprint</h1>
+
+    <div class="form-container">
+        <h2>Enter Details</h2>
+
+        <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="name" placeholder="Enter your name">
+        </div>
+
+        <div class="form-group">
+            <label>Mobile</label>
+            <input type="text" id="mobile" placeholder="Enter your mobile number">
+        </div>
+
+        <div class="form-group">
+            <label>Gender</label>
+            <select id="gender">
+                <option value="">Select your gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Age</label>
+            <select id="age">
+                <option value="">Select your age</option>
+                {% for age in range(1, 101) %}
+                <option value="{{ age }}">{{ age }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Upload Fingerprint</label>
+            <input type="file" id="fingerprint" class="file-upload" accept=".png,.jpg,.jpeg,.bmp">
+        </div>
+
+        <button class="btn" onclick="detectBloodGroup()">Detect Blood Group</button>
+
+        <div class="loading" id="loading">⏳ Detecting... Please wait!</div>
+
+        <div class="result" id="result">
+            <h3 id="result-title"></h3>
+            <p id="result-text"></p>
+        </div>
+    </div>
+
+    <script>
+        async function detectBloodGroup() {
+            const file = document.getElementById('fingerprint').files[0];
+            const name = document.getElementById('name').value;
+
+            if (!name) { alert('Please enter your name!'); return; }
+            if (!file) { alert('Please upload a fingerprint image!'); return; }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                document.getElementById('loading').style.display = 'none';
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block';
+
+                if (data.predicted_label) {
+                    resultDiv.className = 'result success';
+                    document.getElementById('result-title').innerText = `Blood Group: ${data.predicted_label}`;
+                    document.getElementById('result-text').innerText = 
+                        `Confidence: ${(data.confidence * 100).toFixed(2)}%`;
+                } else {
+                    resultDiv.className = 'result error';
+                    document.getElementById('result-title').innerText = 'Error!';
+                    document.getElementById('result-text').innerText = data.error;
+                }
+            } catch (err) {
+                document.getElementById('loading').style.display = 'none';
+                alert('Something went wrong! Please try again.');
+            }
+        }
+    </script>
+</body>
+</html>
